@@ -39,8 +39,8 @@ export const StoreModal: React.FC = () => {
     try {
       setLoading(true);
       const res = await axios.post('/api/stores', values);
-      console.log(res.data);
-      toast.success('Store created successfully');
+
+      window.location.assign(`/${res.data.id}`);
     } catch (error) {
       toast.error('Something went wrong');
     } finally {
