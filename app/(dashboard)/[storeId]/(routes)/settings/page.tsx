@@ -10,6 +10,7 @@ export default async function SettingsPage({
   params: { storeId: string };
 }) {
   const { userId } = await auth();
+  const { storeId } = params;
 
   if (!userId) {
     redirect('/sign-in');
@@ -17,7 +18,7 @@ export default async function SettingsPage({
 
   const store = await prismadb.store.findFirst({
     where: {
-      id: params.storeId,
+      id: storeId,
       userId,
     },
   });

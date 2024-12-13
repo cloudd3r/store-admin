@@ -20,6 +20,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Heading } from '@/components/ui/heading';
+import { AlertModal } from '@/components/modals/alert-modal';
+import { ApiAlert } from '@/components/ui/api-alert';
+import { useOrigin } from '@/hooks/use-origin';
 
 interface Props {
   initialData: Store;
@@ -34,7 +37,10 @@ type SettingsFormValues = z.infer<typeof formShema>;
 export const SettingsForm: React.FC<Props> = ({ initialData }) => {
   const params = useParams();
   const router = useRouter();
+  const origin = useOrigin();
+
   const [loading, setLoading] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(formShema),
@@ -52,11 +58,30 @@ export const SettingsForm: React.FC<Props> = ({ initialData }) => {
       setLoading(false);
     }
   };
+  const onDelete = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.delete(`/api/stores/${params.storeId}`);
+      router.refresh();
+      router.push('/');
+      toast.success('Store deleted');
+    } catch (error) {
+      toast.error('Make sure you removed all products and categories first');
+    } finally {
+      setLoading(false);
+    }
+  };
   return (
     <>
+      <AlertModal
+        isOpen={open}
+        loading={loading}
+        onClose={() => setOpen(false)}
+        onConfirm={onDelete}
+      />
       <div className='flex items-center justify-between'>
         <Heading title='Settings' description='Manage Store preferences' />
-        <Button variant='destructive' size='sm' onClick={() => {}}>
+        <Button variant='destructive' size='sm' onClick={() => setOpen(true)}>
           <Trash className='w-4 h-4' />
         </Button>
       </div>
@@ -90,6 +115,12 @@ export const SettingsForm: React.FC<Props> = ({ initialData }) => {
           </Button>
         </form>
       </Form>
+      <Separator />
+      <ApiAlert
+        title='NEXT_PUBLIC_API_URL'
+        variant='public'
+        description={`${origin}/api/${params.storeId}`}
+      />
     </>
   );
 };
