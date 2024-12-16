@@ -21,8 +21,6 @@ import {
 } from '@/components/ui/form';
 import { Heading } from '@/components/ui/heading';
 import { AlertModal } from '@/components/modals/alert-modal';
-import { ApiAlert } from '@/components/ui/api-alert';
-import { useOrigin } from '@/hooks/use-origin';
 import ImageUpload from '@/components/ui/image-upload';
 
 interface Props {
@@ -39,7 +37,6 @@ type BillboardFormValues = z.infer<typeof formShema>;
 export const BillboardForm: React.FC<Props> = ({ initialData }) => {
   const params = useParams();
   const router = useRouter();
-  const origin = useOrigin();
 
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState(false);
@@ -62,8 +59,17 @@ export const BillboardForm: React.FC<Props> = ({ initialData }) => {
   const onSubmit = async (data: BillboardFormValues) => {
     try {
       setLoading(true);
-      const res = await axios.patch(`/api/stores/${params.storeId}`, data);
+      if (initialData) {
+        await axios.patch(
+          `/api/${params.storeId}/billboards/${params.billboardsId}`,
+          data
+        );
+      } else {
+        await axios.post(`/api/${params.storeId}/billboards`, data);
+      }
       router.refresh();
+      router.push(`/${params.storeId}/billboards`);
+      toast.success(toastMessage);
     } catch (error) {
       toast.error('Something went wrong');
     } finally {
@@ -73,14 +79,17 @@ export const BillboardForm: React.FC<Props> = ({ initialData }) => {
   const onDelete = async () => {
     try {
       setLoading(true);
-      const res = await axios.delete(`/api/stores/${params.storeId}`);
+      await axios.delete(
+        `/api/${params.storeId}/billboards/${params.billboardsId}`
+      );
       router.refresh();
-      router.push('/');
-      toast.success('Store deleted');
+      router.push(`/${params.storeId}/billboards`);
+      toast.success('Billboard deleted');
     } catch (error) {
       toast.error('Make sure you removed all products and categories first');
     } finally {
       setLoading(false);
+      setOpen(false);
     }
   };
   return (
@@ -152,42 +161,6 @@ export const BillboardForm: React.FC<Props> = ({ initialData }) => {
           </Button>
         </form>
       </Form>
-      <Separator />
-      <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className='w-full space-y-8'
-        >
-          <div className='grid grid-cols-3 gap-8'>
-            <FormField
-              control={form.control}
-              name='label'
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Label</FormLabel>
-                  <FormControl>
-                    <Input
-                      disabled={loading}
-                      placeholder='Billboard name'
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-          <Button disabled={loading} className='ml-auto' type='submit'>
-            {action}
-          </Button>
-        </form>
-      </Form>
-      <Separator />
-      <ApiAlert
-        title='NEXT_PUBLIC_API_URL'
-        variant='public'
-        description={`${origin}/api/${params.storeId}`}
-      />
     </>
   );
 };

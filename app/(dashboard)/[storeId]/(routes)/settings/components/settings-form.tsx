@@ -50,7 +50,7 @@ export const SettingsForm: React.FC<Props> = ({ initialData }) => {
   const onSubmit = async (data: SettingsFormValues) => {
     try {
       setLoading(true);
-      const res = await axios.patch(`/api/stores/${params.storeId}`, data);
+      await axios.patch(`/api/stores/${params.storeId}`, data);
       router.refresh();
     } catch (error) {
       toast.error('Something went wrong');
@@ -61,7 +61,7 @@ export const SettingsForm: React.FC<Props> = ({ initialData }) => {
   const onDelete = async () => {
     try {
       setLoading(true);
-      const res = await axios.delete(`/api/stores/${params.storeId}`);
+      await axios.delete(`/api/stores/${params.storeId}`);
       router.refresh();
       router.push('/');
       toast.success('Store deleted');
