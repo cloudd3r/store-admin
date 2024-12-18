@@ -8,9 +8,9 @@ import { CldUploadWidget } from 'next-cloudinary';
 
 interface ImageUploadProps {
   disabled?: boolean;
-  onChange: (value: string) => void;
+  onChange: (value: string[]) => void; // Тип изменен на массив строк
   onRemove: (value: string) => void;
-  value: string[];
+  value: string[]; // Тип value изменен на массив строк
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -26,7 +26,8 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
   }, []);
 
   const onUpload = (result: any) => {
-    onChange(result.info.secure_url);
+    // Добавляем новое изображение в массив старых изображений
+    onChange([...value, result.info.secure_url]);
   };
 
   if (!isMounted) {
