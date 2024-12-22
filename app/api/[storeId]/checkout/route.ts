@@ -1,80 +1,73 @@
-import prismadb from "@/lib/prismadb";
-import { stripe } from "@/lib/stripe";
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
+import { createPayment } from '@/lib/create-payment';
+import prismadb from '@/lib/prismadb';
+import { NextResponse } from 'next/server';
 
 const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization"
+  'Access-Control-Allow-Origin': 'http://localhost:3002', // Укажите ваш домен
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
-export async function OPTIONS() {
-    return NextResponse.json({}, { headers: corsHeaders });
+export async function middleware(req: Request) {
+  if (req.method === 'OPTIONS') {
+    return new NextResponse(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
+  }
+
+  const response = NextResponse.next();
+  response.headers.append(
+    'Access-Control-Allow-Origin',
+    'http://localhost:3002'
+  );
+  return response;
 }
 
-export async function POST(req: Request, { params }: { params: Promise<{ storeId: string }> }) {
-    const { productIds } = await req.json();
-    const { storeId } = await params; 
+// В POST методе добавляем те же заголовки
+export async function POST(
+  req: Request,
+  { params }: { params: { storeId: string } }
+) {
+  const { items, totalPrice } = await req.json();
+  const { storeId } = params;
 
-    if(!productIds || productIds.length === 0) {
-        return new NextResponse("Product ids are required", { status: 400 });
+  try {
+    // Ваш основной код обработки
+    const order = await prismadb.order.create({
+      data: {
+        storeId,
+        isPaid: false,
+        totalPrice,
+        orderItems: {
+          create: items.map((item: { id: string; quantity: number }) => ({
+            product: { connect: { id: item.id } },
+            quantity: item.quantity,
+          })),
+        },
+      },
+    });
+
+    const paymentData = await createPayment({
+      amount: order.totalPrice,
+      orderId: order.id,
+    });
+
+    if (!paymentData) {
+      throw new Error('Payment data not found');
     }
 
-    const products = await prismadb.product.findMany({
-        where: {
-            id: {
-                in: productIds
-            }
-        }
-    })
+    await prismadb.order.update({
+      where: { id: order.id },
+      data: { paymentId: paymentData.id },
+    });
 
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
-
-    products.forEach((product) => {
-        line_items.push({
-            quantity: 1,
-            price_data: {
-                currency: 'USD',
-                product_data: {
-                    name: product.name,
-                },
-                unit_amount: Number(product.price) * 100
-            }
-        })
-    })
-
-    const order = await prismadb.order.create({
-        data: {
-            storeId: storeId,
-            isPaid: false,
-            orderItems: {
-                create: productIds.map((productId: string) => ({
-                    product: {
-                        connect: {
-                            id: productId
-                        }
-                    }
-                }))
-            }
-        }
-    })
-
-    const session = await stripe.checkout.sessions.create({
-        line_items,
-        mode: "payment",
-        billing_address_collection: "required",
-        phone_number_collection: {
-            enabled: true,
-        },
-        success_url: `${process.env.FRONTEND_STORE_URL}/cart?success=1`,
-        cancel_url: `${process.env.FRONTEND_STORE_URL}/cart?cancelled=1`,
-        metadata: {
-            orderId: order.id
-        }
-    })
-
-    return NextResponse.json({ url: session.url }, {
-        headers: corsHeaders,
-    })
+    return NextResponse.json(
+      { url: paymentData.confirmation.confirmation_url },
+      { headers: corsHeaders }
+    );
+  } catch (err) {
+    console.error('[CreateOrder] Server error', err);
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }
