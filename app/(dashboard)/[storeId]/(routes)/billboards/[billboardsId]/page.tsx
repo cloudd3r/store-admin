@@ -6,11 +6,9 @@ export default async function BillboardPage({
 }: {
   params: { billboardsId: string };
 }) {
-  const { billboardsId } = await params;
-
   const billboard = await prismadb.billboard.findUnique({
     where: {
-      id: billboardsId,
+      id: params.billboardsId,
     },
   });
 
